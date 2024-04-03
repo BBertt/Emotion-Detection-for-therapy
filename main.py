@@ -1,16 +1,49 @@
+import cv2
 from deepface import DeepFace
 
-# img1_path = '../Emotion_Recognition/tests/dataset/img1.jpg'
-# img3_path = '../Emotion_Recognition/tests/dataset/img3.jpg'
+# Load the cascade for face detection
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
-img_path = '../Emotion_Recognition/tests/dataset/img1.jpg'
+# Initialize video capture
+cap = cv2.VideoCapture(0)
 
-# resp = DeepFace.verify(img1_path=img1_path, img2_path=img3_path)
+while True:
+    # Capture frame-by-frame
+    ret, frame = cap.read()
 
-obj = DeepFace.analyze(img_path= img_path, actions='emotion')
+    # Check if the frame is captured successfully
+    if not ret:
+        print("Failed to grab frame")
+        break
 
-result = obj[0]
+    # Convert the image to grayscale
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-emotion = result['dominant_emotion']
+    # Detect faces in the image
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
 
-print(emotion)
+    # Draw rectangles around the faces
+    for (x, y, w, h) in faces:
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        roi_gray = gray[y:y + h, x:x + w]
+        roi_color = frame[y:y + h, x:x + w]
+
+        # Predict emotion using DeepFace
+        try:
+            result = DeepFace.analyze(frame, actions=['emotion'])
+            emotion = result[0]['dominant_emotion']
+            cv2.putText(frame, emotion, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2, cv2.LINE_AA)
+        except Exception as e:
+            print(f"Error: {e}")
+            continue
+
+    # Display the resulting frame
+    cv2.imshow('Emotion Detection', frame)
+
+    # Break the loop if 'q' is pressed
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Release the capture
+cap.release()
+cv2.destroyAllWindows()
