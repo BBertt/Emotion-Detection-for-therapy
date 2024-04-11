@@ -1,16 +1,39 @@
-from deepface import DeepFace
+import os
+import cv2
+import numpy as np
+from keras.models import model_from_json
 
-# img1_path = '../Emotion_Recognition/tests/dataset/img1.jpg'
-# img3_path = '../Emotion_Recognition/tests/dataset/img3.jpg'
+emotion_dict = {0: "Angry", 1: "Disgusted", 2: "Fearful", 3: "Happy", 4: "Neutral", 5: "Sad", 6: "Surprised"}
 
-img_path = '../Emotion_Recognition/tests/dataset/img1.jpg'
+# load json and create model
+json_file = open('model/emotion_model.json', 'r')
+loaded_model_json = json_file.read()
+json_file.close()
+emotion_model = model_from_json(loaded_model_json)
 
-# resp = DeepFace.verify(img1_path=img1_path, img2_path=img3_path)
+# load weights into new model
+emotion_model.load_weights("model/emotion_model.h5")
 
-obj = DeepFace.analyze(img_path= img_path, actions='emotion')
+count = 0
+while True:
+    path = f"./captured_images/{count}.jpg"
 
-result = obj[0]
+    if os.path.exists(path):
+        try:
+            img = cv2.imread(path)
+            if img is not None:
+                # Convert the image to grayscale
+                gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                # Resize the image and expand dimensions as needed for the model
+                cropped_img = np.expand_dims(np.expand_dims(cv2.resize(gray_img, (48, 48)), -1), 0)
+                emotion_prediction = emotion_model.predict(cropped_img)
+                maxindex = int(np.argmax(emotion_prediction))
+                print(emotion_dict[maxindex])
+        except ValueError as e:
+            print(f"Error processing {path}: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred while processing {path}: {e}")
+    else:
+        break
 
-emotion = result['dominant_emotion']
-
-print(emotion)
+    count += 1
